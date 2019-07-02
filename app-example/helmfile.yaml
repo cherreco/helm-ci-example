@@ -1,0 +1,28 @@
+environments:
+  dev:
+  sandbox:
+  staging:
+  production:
+
+releases:
+  {{ if eq .Environment.Name "dev" }}
+- name: {{ .Environment.Name }}-{{ requiredEnv "USERNAME" }}-{{ requiredEnv "CONTAINER_TAG" }}
+  namespace: {{ .Environment.Name }}-{{ requiredEnv "USERNAME" }}
+  chart: .
+  {{ else }}
+- name: {{ .Environment.Name }}-{{ requiredEnv "CONTAINER_TAG" }}
+  # Will pull latest production ready chart unless specified
+  chart: {{ env "PROJECT_ID" | default "cherre-cloud" }}-helm-charts/{{ requiredEnv "CONTAINER_TAG" }}
+  {{ end }}
+  labels:
+    commit_hash: {{ env "COMMIT_HASH" }}
+    deployer: {{ env "USERNAME" }}
+    environment: {{ .Environment.Name }}
+  values:
+    - ./values.yaml
+    - ./config/{{ .Environment.Name }}/values.yaml
+    # Defaults to gcr.io/cherre-sandbox/cloud-sql-monitoring:COMMIT_HASH
+    # to set commit `export COMMIT_HASH="$(cherre::get_commit_hash)"`
+    - image: gcr.io/{{ env "PROJECT_ID" | default "cherre-sandbox" }}/{{ requiredEnv "CONTAINER_TAG" }}:{{ requiredEnv "COMMIT_HASH" }}
+  secrets:
+    - ./config/{{ .Environment.Name }}/secrets.yaml
